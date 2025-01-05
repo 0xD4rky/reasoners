@@ -1,6 +1,10 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
-# torch.manual_seed(0)
+import time
+import matplotlib.pyplot as plt
+import numpy as np
+import psutil
+import seaborn as sns
 
 class Sampler:
     def __init__(self , model_name : str ='gpt2-medium') -> None:
@@ -25,28 +29,26 @@ class GreedySampler(Sampler):
     def __call__(self, prompt, max_new_tokens=10):
         predictions = []
         result = prompt
+        timings = []
+        memory_usage = []
+        
         for i in range(max_new_tokens):
+            start_time = time.time()
             
-            print(f"step {i} input: {result}")
             input_ids = self.encode(result)
             next_token_probs = self.get_next_token_prob(input_ids=input_ids)
             
             id = torch.argmax(next_token_probs, dim=-1).item()
             result += self.decode(id)
             
+            end_time = time.time()
+            timings.append(end_time - start_time)
+            memory_usage.append(psutil.Process().memory_info().rss / 1024 / 1024)
             predictions.append(next_token_probs[id].item())
 
-        return result
-    
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
-import time
-import matplotlib.pyplot as plt
-import numpy as np
-import psutil
-import seaborn as sns
+        return result, timings, memory_usage
 
-class CachedSampler(Sampler):
+class KVCacheSampler(Sampler):
     def __call__(self, prompt, max_new_tokens=10):
         predictions = []
         result = prompt
@@ -60,7 +62,6 @@ class CachedSampler(Sampler):
         for i in range(max_new_tokens):
             start_time = time.time()
             
-            # Use past key values if available
             with torch.no_grad():
                 outputs = self.model(input_ids=input_ids, past_key_values=past_key_values)
                 past_key_values = outputs.past_key_values
@@ -68,36 +69,44 @@ class CachedSampler(Sampler):
             next_token_probs = outputs.logits[0, -1, :]
             id = torch.argmax(next_token_probs, dim=-1).item()
             
-            # Only encode the new token
             input_ids = torch.tensor([[id]]).to(self.device)
             result += self.decode(id)
             
             end_time = time.time()
             timings.append(end_time - start_time)
-            memory_usage.append(psutil.Process().memory_info().rss / 1024 / 1024)  # MB
-            
+            memory_usage.append(psutil.Process().memory_info().rss / 1024 / 1024)
+            predictions.append(next_token_probs[id].item())
+
         return result, timings, memory_usage
 
-def plot_comparison(cached_times, uncached_times):
+def plot_comparison(cached_data, uncached_data):
     plt.style.use('dark_background')
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(15, 20))
     
-    # Token generation time comparison
-    x = range(len(cached_times))
-    ax1.plot(x, cached_times, 'g-', label='With KV Cache', linewidth=2)
-    ax1.plot(x, uncached_times, 'r-', label='Without KV Cache', linewidth=2)
-    ax1.set_title('Token Generation Time Comparison')
+    tokens = range(len(cached_data[1]))
+    ax1.plot(tokens, cached_data[1], 'g-', label='With KV Cache', linewidth=2)
+    ax1.plot(tokens, uncached_data[1], 'r-', label='Without KV Cache', linewidth=2)
+    ax1.set_title('Token Generation Time')
     ax1.set_xlabel('Token Number')
     ax1.set_ylabel('Time (seconds)')
     ax1.legend()
     ax1.grid(True, alpha=0.2)
-    ax2.plot(x, np.cumsum(cached_times), 'g-', label='With KV Cache', linewidth=2)
-    ax2.plot(x, np.cumsum(uncached_times), 'r-', label='Without KV Cache', linewidth=2)
+    
+    ax2.plot(tokens, np.cumsum(cached_data[1]), 'g-', label='With KV Cache', linewidth=2)
+    ax2.plot(tokens, np.cumsum(uncached_data[1]), 'r-', label='Without KV Cache', linewidth=2)
     ax2.set_title('Cumulative Processing Time')
     ax2.set_xlabel('Token Number')
     ax2.set_ylabel('Total Time (seconds)')
     ax2.legend()
     ax2.grid(True, alpha=0.2)
+    
+    ax3.plot(tokens, cached_data[2], 'g-', label='With KV Cache', linewidth=2)
+    ax3.plot(tokens, uncached_data[2], 'r-', label='Without KV Cache', linewidth=2)
+    ax3.set_title('Memory Usage')
+    ax3.set_xlabel('Token Number')
+    ax3.set_ylabel('Memory (MB)')
+    ax3.legend()
+    ax3.grid(True, alpha=0.2)
     
     plt.tight_layout()
     plt.savefig('kv_cache_comparison.png', bbox_inches='tight', facecolor='black')
@@ -105,9 +114,9 @@ def plot_comparison(cached_times, uncached_times):
 
 prompt = "The quick brown fox"
 uncached_sampler = GreedySampler()
-cached_sampler = CachedSampler()
+cached_sampler = KVCacheSampler()
 
-_, cached_times, _ = cached_sampler(prompt, max_new_tokens=20)
-_, uncached_times, _ = uncached_sampler(prompt, max_new_tokens=20)
+uncached_result = uncached_sampler(prompt, max_new_tokens=20)
+cached_result = cached_sampler(prompt, max_new_tokens=20)
 
-plot_comparison(cached_times, uncached_times)
+plot_comparison(cached_result, uncached_result)
