@@ -1,5 +1,0 @@
-tap "homebrew/bundle"
-brew "git-filter-repo"
-brew "poppler"
-brew "pyenv"
-brew "pyenv-virtualenv"
