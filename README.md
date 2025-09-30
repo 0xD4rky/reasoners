@@ -1,1 +1,1 @@
-# -qkv-
+# building small reasoning model
