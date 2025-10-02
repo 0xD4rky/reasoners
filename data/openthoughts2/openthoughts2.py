@@ -1,7 +1,7 @@
 import json
 from typing import List, Dict, Any
-from base import BaseSFTDataset, SFT_Config
-from factory import DataFactory
+from data.base import BaseSFTDataset, SFT_Config
+from data.factory import DataFactory
 from datasets import load_dataset
 
 @DataFactory.register_dataset("open-thoughts-2")
