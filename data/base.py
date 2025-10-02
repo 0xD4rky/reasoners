@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 import json
 
 @dataclass
-class SFT_Config:
+class SFTConfig:
     messages: List[Dict[str, str]]
 
     def to_dict(self) -> Dict[str, Any]: # returns a dict of the dataclass
@@ -21,10 +21,10 @@ class BaseSFTDataset(ABC):
         pass
     
     @abstractmethod
-    def convert(self, example: Dict[str, Any]) -> SFT_Config:
+    def convert(self, example: Dict[str, Any]) -> SFTConfig:
         pass
     
-    def parse_dataset(self) -> List[SFT_Config]:
+    def parse_dataset(self) -> List[SFTConfig]:
         """
         function to parse and convert the dataset into a unified format for SFT
         """
@@ -38,5 +38,5 @@ class BaseSFTDataset(ABC):
         with open(output_path, "w") as f:
             for example in dataset:
                 f.write(json.dumps(example.to_dict()) + "\n")
-                
+
         print(f"Dataset saved to {output_path}, length: {len(dataset)}")

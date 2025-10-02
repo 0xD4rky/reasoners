@@ -1,6 +1,6 @@
 from PIL.ExifTags import Base
 import pytest
-from data.base import BaseSFTDataset, SFT_Config
+from data.base import BaseSFTDataset, SFTConfig
 from data.factory import DataFactory
 from typing import List, Dict, Any
 
@@ -14,8 +14,8 @@ class MockDataset(BaseSFTDataset):
 
         return message
 
-    def convert(self, example: Dict[str, Any]) -> SFT_Config:
-        return SFT_Config(messages=[{"role": example[0]["from"], "content": example[0]["value"]}])
+    def convert(self, example: Dict[str, Any]) -> SFTConfig:
+        return SFTConfig(messages=[{"role": example[0]["from"], "content": example[0]["value"]}])
 
 
 class TestDataFactory:
@@ -28,7 +28,7 @@ class TestDataFactory:
 
     def test_registry_of_datasets(self):
         """
-        test to to verify the registry of dataset function
+        test to verify the registry of dataset function
         """
 
         @DataFactory.register_dataset("test-dataset")
@@ -36,7 +36,7 @@ class TestDataFactory:
             def load_dataset(self):
                 return []
             def convert(self, example):
-                return SFT_Config(messages=[])
+                return SFTConfig(messages=[])
 
         assert "test-dataset" in DataFactory.available_datasets()
 
@@ -50,7 +50,7 @@ class TestDataFactory:
             def load_dataset(self):
                 return []
             def convert(self, example):
-                return SFT_Config(messages=[])
+                return SFTConfig(messages=[])
 
         assert "test-dataset" in DataFactory.available_datasets()
     
@@ -64,7 +64,7 @@ class TestDataFactory:
             def load_dataset(self):
                 return []
             def convert(self, example):
-                return SFT_Config(messages=[])
+                return SFTConfig(messages=[])
 
         dataset = DataFactory.create_dataset("test-dataset") # FIRST REGISTER, THEN CREATE
         assert isinstance(dataset, TestDataset)
@@ -79,10 +79,9 @@ class TestDataFactory:
             def load_dataset(self):
                 return []
             def convert(self, example):
-                return SFT_Config(messages=[])
+                return SFTConfig(messages=[])
         
         info = DataFactory.get_all_datasets()
         assert "test-dataset" in info.keys()
         assert isinstance(info["test-dataset"], type(TestDataset))
-    
     
