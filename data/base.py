@@ -3,6 +3,8 @@ from dataclasses import dataclass, asdict
 from typing import Any, Dict, List
 import json
 
+from datasets import Dataset
+
 @dataclass
 class SFTConfig:
     messages: List[Dict[str, str]]
@@ -17,7 +19,7 @@ class BaseSFTDataset(ABC):
         self.name = name
 
     @abstractmethod
-    def load_dataset(self) -> List[Dict[str, Any]]:
+    def load_dataset(self) -> Dataset:
         pass
     
     @abstractmethod
