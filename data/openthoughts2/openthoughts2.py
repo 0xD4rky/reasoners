@@ -8,7 +8,7 @@ from datasets import load_dataset, Dataset
 class OpenThoughts2Dataset(BaseSFTDataset):
 
     def load_dataset(self) -> Dataset:
-        return load_dataset("open-thoughts/openthoughts2", split="train")
+        return load_dataset("open-thoughts/OpenThoughts2-1M", split="train")
     
     def convert(self, example: Dict[str, Any]) -> SFTConfig:
 

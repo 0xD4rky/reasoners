@@ -15,6 +15,10 @@ class SFTConfig:
 
 class BaseSFTDataset(ABC):
 
+    """
+    Base class for all SFT datasets to convert into a unified format {"role": "user", "content": "..."} for sft
+    """
+
     def __init__(self, name: str):
         self.name = name
 
