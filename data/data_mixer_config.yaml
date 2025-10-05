@@ -1,0 +1,11 @@
+mixing_strategy: interleave
+
+datasets:
+  - name: open-thoughts-2
+    weight: 0.7  
+  - name: gsm8k
+    weight: 0.3 
+
+interleave_settings:
+  seed: 42
+  stopping_strategy: all_exhausted  
