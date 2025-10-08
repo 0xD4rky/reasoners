@@ -33,7 +33,7 @@ class TestDataFactory:
 
         @DataFactory.register_dataset("test-dataset")
         class TestDataset(BaseSFTDataset):
-            def load_dataset(self):
+            def load_data(self):
                 return []
             def convert(self, example):
                 return SFTConfig(messages=[])
@@ -47,7 +47,7 @@ class TestDataFactory:
 
         @DataFactory.register_dataset("Test-Dataset")
         class TestDataset(BaseSFTDataset):
-            def load_dataset(self):
+            def load_data(self):
                 return []
             def convert(self, example):
                 return SFTConfig(messages=[])
@@ -61,10 +61,12 @@ class TestDataFactory:
 
         @DataFactory.register_dataset("test-dataset")
         class TestDataset(BaseSFTDataset):
-            def load_dataset(self):
+            def load_data(self):
                 return []
             def convert(self, example):
                 return SFTConfig(messages=[])
+            def parse_data(self):
+                return []
 
         dataset = DataFactory.create_dataset("test-dataset") # FIRST REGISTER, THEN CREATE
         assert isinstance(dataset, TestDataset)
@@ -76,7 +78,7 @@ class TestDataFactory:
 
         @DataFactory.register_dataset("test-dataset")
         class TestDataset(BaseSFTDataset):
-            def load_dataset(self):
+            def load_data(self):
                 return []
             def convert(self, example):
                 return SFTConfig(messages=[])
