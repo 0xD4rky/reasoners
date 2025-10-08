@@ -23,22 +23,18 @@ class BaseSFTDataset(ABC):
         self.name = name
 
     @abstractmethod
-    def load_dataset(self) -> Dataset:
+    def load_data(self) -> Dataset:
         pass
     
     @abstractmethod
     def convert(self, example: Dict[str, Any]) -> SFTConfig:
         pass
     
-    def parse_dataset(self) -> List[SFTConfig]:
-        """
-        function to parse and convert the dataset into a unified format for SFT
-        """
-
-        dataset = self.load_dataset()
-        return [self.convert(example) for example in dataset]
+    @abstractmethod
+    def parse_data(self) -> List[SFTConfig]:
+        pass
     
-    def save_dataset(self, output_path: str):
+    def save_data(self, output_path: str):
 
         dataset = self.parse_dataset()
         with open(output_path, "w") as f:
