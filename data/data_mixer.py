@@ -26,9 +26,10 @@ class DataMixer:
             dataset_name = dataset_config["name"]
 
             dataset_instance = DataFactory.create_dataset(dataset_name)
-            raw_dataset = dataset_instance.load_dataset()
-            converted_data = list(map(lambda example: dataset_instance.convert(example).to_dict(), raw_dataset)) # converting the datasets to a unified format for sft
-            hf_dataset = Dataset.from_list(converted_data)
+            print(f"parsing {dataset_name} dataset \n")
+            converted_data = dataset_instance.parse_data() # converting the datasets to a unified format for sft
+            converted_data_dicts = [item.to_dict() for item in converted_data]
+            hf_dataset = Dataset.from_list(converted_data_dicts)
             datasets.append(hf_dataset)
 
             print(f"Loaded {dataset_name}: {len(hf_dataset)} examples")
@@ -86,8 +87,7 @@ class DataMixer:
 
         import json
         with open(output_path, 'w') as f:
-            for example in mixed_dataset:
-                f.write(json.dumps(example) + '\n')
+            json.dump(list(mixed_dataset), f, indent=2)
 
         print(f"final mixed dataset saved to: {output_path}")
 

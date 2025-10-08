@@ -6,7 +6,7 @@ from datasets import load_dataset, Dataset
 @DataFactory.register_dataset("gsm8k")
 class GSM8KDataset(BaseSFTDataset):
 
-    def load_dataset(self) -> Dataset:
+    def load_data(self) -> Dataset:
         return load_dataset("gsm8k", "main", split="train")
     
     def convert(self, example: Dict[str, Any]) -> SFTConfig:
@@ -21,3 +21,12 @@ class GSM8KDataset(BaseSFTDataset):
         }]
         
         return SFTConfig(messages=messages)
+    
+    def parse_data(self) -> List[SFTConfig]:
+
+        dataset = self.load_data()
+        messages = []
+        for i in range(len(dataset)):
+            messages.append(self.convert(dataset[i]))
+        
+        return messages
