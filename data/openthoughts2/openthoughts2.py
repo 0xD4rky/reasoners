@@ -3,6 +3,7 @@ from typing import List, Dict, Any
 from data.base import BaseSFTDataset, SFTConfig
 from data.factory import DataFactory
 from datasets import load_dataset, Dataset
+from tqdm import tqdm
 
 @DataFactory.register_dataset("open-thoughts-2")
 class OpenThoughts2Dataset(BaseSFTDataset):
@@ -25,7 +26,7 @@ class OpenThoughts2Dataset(BaseSFTDataset):
 
         dataset = self.load_data()
         messages = []
-        for i in range(len(dataset)):
+        for i in tqdm(range(len(dataset)), desc="Parsing OpenThoughts2 dataset"):
             messages.append(self.convert(dataset[i]["conversations"]))
         
         return messages
