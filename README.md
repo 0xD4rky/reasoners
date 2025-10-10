@@ -1,1 +1,1 @@
-# building small reasoning model
+# my post-training codebase
