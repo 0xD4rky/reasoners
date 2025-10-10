@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 from data.base import BaseSFTDataset, SFTConfig
 from data.factory import DataFactory
 from datasets import load_dataset, Dataset
+from tqdm import tqdm
 
 @DataFactory.register_dataset("gsm8k")
 class GSM8KDataset(BaseSFTDataset):
@@ -26,7 +27,7 @@ class GSM8KDataset(BaseSFTDataset):
 
         dataset = self.load_data()
         messages = []
-        for i in range(len(dataset)):
+        for i in tqdm(range(len(dataset)), desc="Parsing GSM8K dataset"):
             messages.append(self.convert(dataset[i]))
         
         return messages
