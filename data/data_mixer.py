@@ -2,7 +2,6 @@ import yaml
 from typing import List
 from datasets import interleave_datasets, concatenate_datasets, Dataset
 from data.factory import DataFactory
-from tqdm import tqdm
 
 class DataMixer:
 
