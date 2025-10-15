@@ -3,7 +3,7 @@ from dataclasses import dataclass, asdict
 from typing import Any, Dict, List
 import json
 
-from datasets import Dataset
+from datasets import Dataset, IterableDataset
 
 @dataclass
 class SFTConfig:
@@ -19,11 +19,12 @@ class BaseSFTDataset(ABC):
     Base class for all SFT datasets to convert into a unified format {"role": "user", "content": "..."} for sft
     """
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, streaming: bool = False):
         self.name = name
+        self.streaming = streaming
 
     @abstractmethod
-    def load_data(self) -> Dataset:
+    def load_data(self) -> Dataset | IterableDataset:
         pass
     
     @abstractmethod
@@ -36,7 +37,7 @@ class BaseSFTDataset(ABC):
     
     def save_data(self, output_path: str):
 
-        dataset = self.parse_dataset()
+        dataset = self.parse_data()
         with open(output_path, "w") as f:
             for example in dataset:
                 f.write(json.dumps(example.to_dict()) + "\n")

@@ -34,7 +34,7 @@ class DataFactory:
         if key not in cls._datasets:
             raise ValueError(f"Unknown dataset: '{name}'. Available: {list(cls._datasets.keys())}")
         dataset_class = cls._datasets[key]
-        return dataset_class(name)
+        return dataset_class(name, **kwargs)
     
     @classmethod
     def available_datasets(cls) -> List[str]:

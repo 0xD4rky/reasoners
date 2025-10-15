@@ -24,8 +24,9 @@ class DataMixer:
 
         for dataset_config in self.datasets_config:
             dataset_name = dataset_config["name"]
+            streaming = dataset_config.get("streaming", False)
 
-            dataset_instance = DataFactory.create_dataset(dataset_name)
+            dataset_instance = DataFactory.create_dataset(dataset_name, streaming=streaming)
             converted_data = dataset_instance.parse_data() # converting the datasets to a unified format for sft
             converted_data_dicts = [item.to_dict() for item in converted_data]
             hf_dataset = Dataset.from_list(converted_data_dicts)
