@@ -1,14 +1,14 @@
 from typing import List, Dict, Any
 from data.base import BaseSFTDataset, SFTConfig
 from data.factory import DataFactory
-from datasets import load_dataset, Dataset
+from datasets import load_dataset, Dataset, IterableDataset
 from tqdm import tqdm
 
 @DataFactory.register_dataset("stratos")
 class StratosDataset(BaseSFTDataset):
 
-    def load_data(self) -> Dataset:
-        return load_dataset("bespokelabs/Bespoke-Stratos-17k", split="train")
+    def load_data(self) -> Dataset | IterableDataset:
+        return load_dataset("bespokelabs/Bespoke-Stratos-17k", split="train", streaming=self.streaming)
     
     def convert(self, example: Dict[str, Any]) -> SFTConfig:
 
@@ -28,7 +28,8 @@ class StratosDataset(BaseSFTDataset):
 
         dataset = self.load_data()
         messages = []
-        for i in tqdm(range(len(dataset)), desc="Parsing stratos dataset"):
-            messages.append(self.convert(dataset[i]["conversations"]))
+        total = getattr(dataset, "num_rows", None)
+        for example in tqdm(dataset, desc="Parsing stratos dataset", total=total):
+            messages.append(self.convert(example["conversations"]))
         
         return messages

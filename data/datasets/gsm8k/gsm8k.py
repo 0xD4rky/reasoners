@@ -1,14 +1,14 @@
 from typing import List, Dict, Any
 from data.base import BaseSFTDataset, SFTConfig
 from data.factory import DataFactory
-from datasets import load_dataset, Dataset
+from datasets import load_dataset, Dataset, IterableDataset
 from tqdm import tqdm
 
 @DataFactory.register_dataset("gsm8k")
 class GSM8KDataset(BaseSFTDataset):
 
-    def load_data(self) -> Dataset:
-        return load_dataset("gsm8k", "main", split="train")
+    def load_data(self) -> Dataset | IterableDataset:
+        return load_dataset("gsm8k", "main", split="train", streaming=self.streaming)
     
     def convert(self, example: Dict[str, Any]) -> SFTConfig:
 
@@ -27,7 +27,8 @@ class GSM8KDataset(BaseSFTDataset):
 
         dataset = self.load_data()
         messages = []
-        for i in tqdm(range(len(dataset)), desc="Parsing GSM8K dataset"):
-            messages.append(self.convert(dataset[i]))
+        total = getattr(dataset, "num_rows", None)
+        for example in tqdm(dataset, desc="Parsing GSM8K dataset", total=total):
+            messages.append(self.convert(example))
         
         return messages
