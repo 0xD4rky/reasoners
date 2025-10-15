@@ -2,7 +2,11 @@ mixing_strategy: interleave
 
 datasets:
   - name: gsm8k
-    weight: 0.3 
+    weight: 0.4
+    streaming: true
+  - name: stratos
+    weight: 0.6
+    streaming: true
 
 interleave_settings:
   seed: 42
