@@ -27,8 +27,8 @@ class DataMixer:
             streaming = dataset_config.get("streaming", False)
 
             dataset_instance = DataFactory.create_dataset(dataset_name, streaming=streaming)
-            converted_data = dataset_instance.parse_data() # converting the datasets to a unified format for sft
-            converted_data_dicts = [message for item in converted_data for message in item.messages]
+            converted_data = dataset_instance.parse_data()
+            converted_data_dicts = [item.to_dict() for item in converted_data]
             hf_dataset = Dataset.from_list(converted_data_dicts)
             datasets.append(hf_dataset)
 
@@ -85,14 +85,14 @@ class DataMixer:
     def save_mixed_dataset(self, output_path: str):
         mixed_dataset = self.mix_datasets()
 
-        mixed_dataset.save_to_disk(output_path)
-        print(f"final mixed dataset saved to: {output_path}")
-
-        # import json
-        # with open(output_path, 'w') as f:
-        #     json.dump(list(mixed_dataset), f, indent=4)
-
+        # mixed_dataset.save_to_disk(output_path)
         # print(f"final mixed dataset saved to: {output_path}")
+
+        import json
+        with open(output_path, 'w') as f:
+            json.dump(list(mixed_dataset), f, indent=4)
+
+        print(f"final mixed dataset saved to: {output_path}")
 
 
 if __name__ == "__main__":
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, required=True)
-    parser.add_argument("--output_path", default="data/mixed_dataset.arrow")
+    parser.add_argument("--output_path", default="sft_data.json")
     args = parser.parse_args()
 
     mixer = DataMixer(args.config)

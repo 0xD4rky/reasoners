@@ -15,12 +15,16 @@ class StratosDataset(BaseSFTDataset):
         def replace_think_tokens(text: str) -> str:
             return text.replace("<|begin_of_thought|>", "<think>").replace("<|end_of_thought|>", "</think>")
 
-        messages = []
-        for i in range(len(example)):
-            messages.append({
-                "role": example[i].get("from"),
-                "content": replace_think_tokens(example[i].get("value"))
-            })
+        messages = [
+            {
+                "role": example[0].get("from"),
+                "content": example[0].get("value")
+            },
+            {
+                "role": example[1].get("from"),
+                "content": replace_think_tokens(example[1].get("value"))
+            }
+        ]
         
         return SFTConfig(messages=messages)
     
