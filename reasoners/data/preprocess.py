@@ -1,7 +1,9 @@
 import re
 import torch
 import numpy as np
+import yaml
 
+from pathlib import Path
 from dataclasses import dataclass
 from collections import defaultdict
 from torch.utils.data import Dataset, DataLoader, BatchSampler
@@ -26,6 +28,7 @@ class ReasoningParser:
   """
 
   def __init__(self):
+
     # extracting patterns from ans
 
     self.think_pattern = re.compile(r'<think>(.*?)</think>', re.DOTALL)
@@ -56,13 +59,18 @@ class ReasoningParser:
 
 class ReasoningDataset(Dataset):
 
+  """
+  dataset class for reasoning tasks, handles system prompt, reasoning chain extraction, and tokenization
+  """
+
   def __init__(
       self,
       data: List[Dict],
       tokenizer,
       max_length: int = 4096,
       parse_reasoning: bool = True,
-      include_reasoning_in_loss: bool = True
+      include_reasoning_in_loss: bool = True,
+      system_prompt_path: Optional[str] = None
   ):
 
     self.data = data
@@ -75,7 +83,21 @@ class ReasoningDataset(Dataset):
     self.eos_token_id = tokenizer.eos_token_id
     self.pad_token_id = tokenizer.pad_token_id
 
+    self.system_prompt = self._load_system_prompt(system_prompt_path)
     self.examples = self._preprocess_data(data)
+  
+  def _load_system_prompt(self, path: Optional[str]) -> Optional[str]:
+    if not path:
+      return None
+    
+    prompt_path = Path(path)
+    if not prompt_path.exists():
+      return None
+    
+    with open(prompt_path, 'r') as f:
+      config = yaml.safe_load(f)
+    
+    return config.get('system_prompt', '').strip()
   
   def _preprocess_data(
       self,
@@ -114,10 +136,16 @@ class ReasoningDataset(Dataset):
   def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
 
     example = self.examples[idx]
-    messages = [
-            {"role": "user", "content": example.user_query},
-            {"role": "assistant", "content": example.get_full_response()}
-        ]
+    messages = []
+    
+    if self.system_prompt:
+      messages.append({"role": "system", "content": self.system_prompt})
+    
+    messages.extend([
+      {"role": "user", "content": example.user_query},
+      {"role": "assistant", "content": example.get_full_response()}
+    ])
+    
     formatted = self.tokenizer.apply_chat_template(
             messages,
             tokenize=False,
@@ -149,25 +177,26 @@ class ReasoningDataset(Dataset):
       messages: List[Dict[str, str]]
   ) -> List[int]:
   
-    """
-    creating labels for causal LM training with masking all user queries
-    """
-
-    # finding the boundary bwn user and assistant tokens
-    user_formatted = self.tokenizer.apply_chat_template(
-        messages[:1],
+    assistant_start_idx = next((i for i, msg in enumerate(messages) if msg["role"] == "assistant"), -1)
+    
+    if assistant_start_idx == -1:
+      return [-100] * len(input_ids)
+    
+    prompt_messages = messages[:assistant_start_idx]
+    prompt_formatted = self.tokenizer.apply_chat_template(
+        prompt_messages,
         tokenize=False,
         add_generation_prompt=True
     )
-    user_tokens = self.tokenizer(
-            user_formatted,
-            add_special_tokens=False
+    prompt_tokens = self.tokenizer(
+        prompt_formatted,
+        add_special_tokens=False
     )['input_ids']
 
-    labels = [-100]*len(input_ids)
-
-    user_len = len(user_tokens)
-    if user_len < len(input_ids):
-      labels[user_len:] = input_ids[user_len:]
+    labels = [-100] * len(input_ids)
+    prompt_len = len(prompt_tokens)
+    
+    if prompt_len < len(input_ids):
+      labels[prompt_len:] = input_ids[prompt_len:]
     
     return labels

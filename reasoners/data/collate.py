@@ -40,7 +40,7 @@ class Collator:
         -100,
         dtype = torch.long
     )
-    attention_mask = torch.zeroes(
+    attention_mask = torch.zeros(
         (batch_size, max_length),
         dtype = torch.long
     )
@@ -81,8 +81,8 @@ class LengthBatchSampler(BatchSampler):
     self.shuffle = shuffle
     self.drop_last = drop_last
 
-    lengths = torch.full(len(dataset.examples), dtype = torch.int32)
-    for i,item in enumerate(dataset.examples):
+    lengths = torch.zeros(len(dataset.examples), dtype=torch.int32)
+    for i, item in enumerate(dataset.examples):
       lengths[i] = len(item.user_query) + len(item.get_full_response())
     
     self.sorted_indices = np.argsort(lengths).tolist()
