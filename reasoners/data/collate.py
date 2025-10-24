@@ -107,3 +107,52 @@ class LengthBatchSampler(BatchSampler):
     if self.drop_last:
         return n // self.batch_size
     return (n + self.batch_size - 1) // self.batch_size
+
+
+
+
+def seed_worker(worker_id):
+
+  torch.set_num_threads(1)
+  worker_seed = torch.initial_seed() % 2**32 
+  np.random.seed(worker_seed + worker_id)
+
+def create_dataloader(
+    dataset,
+    batch_size: int,
+    shuffle: bool = True,
+    num_workers: int = 4,
+    group_by_length: bool = True,
+    drop_last: bool = False
+):
+
+  collator = Collator(
+        pad_token_id=dataset.pad_token_id,
+        padding_side="right"
+    )
+
+  batch_sampler = LengthBatchSampler(
+    dataset=dataset,
+    batch_size=batch_size,
+    shuffle=shuffle,
+    drop_last=drop_last
+  )
+
+  loader = DataLoader(
+    dataset,
+    batch_sampler=batch_sampler,
+    num_workers=num_workers,
+    collate_fn=collator,
+    pin_memory=torch.cuda.is_available(),
+    persistent_workers=num_workers > 0,
+    worker_init_fn=seed_worker,
+    prefetch_factor=2 if num_workers > 0 else None
+  )
+
+  return loader
+
+def get_optimal_workers(): # func to fetch ideal no of workers
+  import multiprocessing as mp
+  cpu_count = mp.cpu_count()
+
+  return 2 if cpu_count <= 4 else 4 if cpu_count <= 8 else 6
