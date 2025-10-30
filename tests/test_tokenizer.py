@@ -2,18 +2,12 @@ import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'build'))
-
-try:
-    from qwen_tokenizer_cpp import QwenBPETokenizer
-except ImportError as e:
-    print(f"Failed to import C++ module: {e}")
-    print(f"Make sure to build first: ./build.sh")
-    sys.exit(1)
+from reasoners.tokenizer import QwenTokenizer
 
 def test_tokenizer():
     tokenizer_path = os.path.join(os.path.dirname(__file__), "..", "reasoners/models/Qwen/Qwen2.5-1.5B-Instruct/tokenizer.json")
     
-    tokenizer = QwenBPETokenizer(tokenizer_path)
+    tokenizer = QwenTokenizer(tokenizer_path)
     
     test_text = "Hello, world! This is a test."
     print(f"Input: {test_text}")
