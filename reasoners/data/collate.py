@@ -117,6 +117,12 @@ def seed_worker(worker_id):
   worker_seed = torch.initial_seed() % 2**32 
   np.random.seed(worker_seed + worker_id)
 
+def get_optimal_workers(): # func to fetch ideal no of workers
+  import multiprocessing as mp
+  cpu_count = mp.cpu_count()
+
+  return 2 if cpu_count <= 4 else 4 if cpu_count <= 8 else 6
+
 def create_dataloader(
     dataset,
     batch_size: int,
@@ -150,9 +156,3 @@ def create_dataloader(
   )
 
   return loader
-
-def get_optimal_workers(): # func to fetch ideal no of workers
-  import multiprocessing as mp
-  cpu_count = mp.cpu_count()
-
-  return 2 if cpu_count <= 4 else 4 if cpu_count <= 8 else 6
