@@ -30,6 +30,3 @@ pybind11_add_module(qwen_tokenizer_cpp
 
 target_link_libraries(qwen_tokenizer_cpp PRIVATE nlohmann_json::nlohmann_json)
 
-add_executable(test_tokenizer tests/test_tokenizer.cpp)
-target_link_libraries(test_tokenizer PRIVATE nlohmann_json::nlohmann_json)
-
