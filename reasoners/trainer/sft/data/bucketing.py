@@ -86,7 +86,6 @@ class TokenLengthCache:
     def __init__(
         self,
         dataset,
-        tokenizer,
         cache_dir: Optional[str] = None,
         eager: bool = True,
         show_progress: bool = True

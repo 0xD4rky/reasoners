@@ -8,7 +8,7 @@ _CPP_AVAILABLE = False
 _QwenBPETokenizerCpp = None
 
 try:
-    sys.path.insert(0, str(Path(__file__).parent))
+    sys.path.insert(0, str(Path(__file__).parent / "Qwen" / "Qwen2.5-1.5B-Instruct"))
     from qwen_tokenizer_cpp import QwenBPETokenizer as _QwenBPETokenizerCpp
     _CPP_AVAILABLE = True
 except ImportError:
@@ -48,7 +48,7 @@ class QwenTokenizer:
         if tokenizer_path is None:
             tokenizer_path = os.path.join(
                 Path(__file__).parent,
-                "models/Qwen/Qwen2.5-1.5B-Instruct/tokenizer.json"
+                "Qwen/Qwen2.5-1.5B-Instruct/tokenizer.json"
             )
         
         if not os.path.exists(tokenizer_path):
