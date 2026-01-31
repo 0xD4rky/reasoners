@@ -1,0 +1,42 @@
+[project]
+name = "reasoners"
+version = "0.1.0"
+description = "Post-training codebase for reasoning models"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.0.0",
+    "datasets>=2.14.0",
+    "transformers>=4.35.0",
+    "tqdm>=4.65.0",
+    "numpy>=1.24.0",
+    "pyyaml>=6.0",
+    "accelerate>=0.25.0",
+    "peft>=0.7.0",
+    "bitsandbytes>=0.41.0",
+    "safetensors>=0.4.0",
+    "sentencepiece>=0.1.99",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel", "pybind11>=2.11.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "ruff>=0.1.0",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501"]
