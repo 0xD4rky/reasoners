@@ -45,15 +45,44 @@ public:
     return results;
   }
 
+  // ---- Decode: precomputed contiguous pool, two-pass exact-alloc ----
+
   std::string decode(const std::vector<int>& ids) const {
-    std::string byte_level;
-    byte_level.reserve(ids.size() * 4);
-    const int vec_sz = static_cast<int>(id_to_token_vec_.size());
-    for (int id : ids) {
-      if (id >= 0 && id < vec_sz)
-        byte_level.append(id_to_token_vec_[id]);
+    const int n = static_cast<int>(ids.size());
+    const unsigned piece_count = static_cast<unsigned>(decode_pieces_.size());
+    const char* pool = decode_pool_.data();
+
+    // Pass 1: exact output size (just integer adds — no branching, no allocation)
+    size_t total = 0;
+    for (int i = 0; i < n; i++) {
+      unsigned id = static_cast<unsigned>(ids[i]);
+      if (__builtin_expect(id < piece_count, 1))
+        total += decode_pieces_[id].len;
     }
-    return bytelevel_decode(byte_level);
+
+    // Single allocation, exact size
+    std::string out(total, '\0');
+
+    // Pass 2: memcpy from contiguous pool (no UTF-8 parsing, no transformation)
+    char* dst = out.data();
+    for (int i = 0; i < n; i++) {
+      unsigned id = static_cast<unsigned>(ids[i]);
+      if (__builtin_expect(id < piece_count, 1)) {
+        auto& p = decode_pieces_[id];
+        memcpy(dst, pool + p.offset, p.len);
+        dst += p.len;
+      }
+    }
+
+    return out;
+  }
+
+  std::vector<std::string> batch_decode(
+      const std::vector<std::vector<int>>& batch_ids) const {
+    std::vector<std::string> results(batch_ids.size());
+    for (size_t i = 0; i < batch_ids.size(); i++)
+      results[i] = decode(batch_ids[i]);
+    return results;
   }
 
   inline int token_to_id(const std::string& t) const {
@@ -70,16 +99,12 @@ private:
   std::vector<std::pair<int,int>> merges_;
 
   int byte_initial_id_[256];
-  uint8_t decode_byte_[512];
-  bool decode_valid_[512];
 
-  // Character class table — single lookup replaces multi-branch comparisons
   enum CClass : uint8_t { CC_OTHER=0, CC_LETTER=1, CC_DIGIT=2, CC_SPACE=3, CC_NL=4, CC_APOS=5, CC_HIGH=6 };
   uint8_t cclass_[256];
 
   struct MergeInfo { int rank; int merged_id; };
 
-  // Open-addressing flat hash map — cache-line friendly merge lookups
   struct MergeMap {
     static constexpr uint64_t EMPTY = ~0ULL;
     struct Slot { uint64_t key; MergeInfo val; };
@@ -118,7 +143,7 @@ private:
 
   std::unordered_map<char, std::vector<std::pair<std::string,int>>> special_by_prefix_;
 
-  // Flat word cache — zero allocations on lookup (no std::string key construction)
+  // Encode cache
   struct CacheSlot {
     uint64_t hash;
     uint16_t data_len;
@@ -129,6 +154,15 @@ private:
   static constexpr size_t CACHE_MASK = CACHE_SLOTS - 1;
   static constexpr int MAX_CACHED_TOKENS = 13;
   mutable std::vector<CacheSlot> slot_cache_;
+
+  // Decode pool — all token raw bytes packed contiguously
+  struct DecodePiece { uint32_t offset; uint16_t len; };
+  std::vector<DecodePiece> decode_pieces_;
+  std::vector<char> decode_pool_;
+
+  // Byte-level codec tables (used only during construction)
+  uint8_t decode_byte_[512];
+  bool decode_valid_[512];
 
   static inline uint64_t pack_pair(int a, int b) {
     return (static_cast<uint64_t>(static_cast<uint32_t>(a)) << 32) |
@@ -144,7 +178,7 @@ private:
     return h ^ (h >> 32);
   }
 
-  // ---- Shared encode core ----
+  // ---- Encode core ----
 
   void encode_into(const std::string& text,
                    const std::unordered_set<std::string>& allowed_special,
@@ -154,7 +188,6 @@ private:
     const char* data = text.data();
 
     while (pos < len) {
-      // Special token match (rare path)
       if (__builtin_expect(!special_by_prefix_.empty(), 0)) {
         auto it = special_by_prefix_.find(data[pos]);
         if (it != special_by_prefix_.end()) {
@@ -185,12 +218,9 @@ private:
     }
   }
 
-  // ---- BPE encode per chunk: flat cache → BPE fallback ----
-
   inline void encode_chunk(const char* data, size_t len, std::vector<int>& out) const {
     if (__builtin_expect(!len, 0)) return;
 
-    // Flat cache probe — no string allocation, just hash + array index
     uint64_t h = chunk_hash(data, len);
     size_t slot_idx = static_cast<size_t>(h) & CACHE_MASK;
     auto& slot = slot_cache_[slot_idx];
@@ -200,7 +230,6 @@ private:
       return;
     }
 
-    // Cache miss — run BPE
     if (len == 1) {
       int id = byte_initial_id_[static_cast<uint8_t>(data[0])];
       if (id >= 0) {
@@ -214,7 +243,6 @@ private:
     bpe_encode(data, len, out);
     size_t produced = out.size() - before;
 
-    // Store in flat cache if it fits
     if (produced <= MAX_CACHED_TOKENS && len <= 0xFFFF) {
       slot.hash = h;
       slot.data_len = static_cast<uint16_t>(len);
@@ -285,15 +313,13 @@ private:
       if (ids[i] >= 0) out.push_back(ids[i]);
   }
 
-  // ---- Chunk boundary detection using character class table ----
+  // ---- Chunk boundary detection ----
 
   size_t find_next_chunk(const char* text, size_t len, size_t start) const {
     if (start >= len) return start;
-
     size_t pos = start;
     const uint8_t cc_first = cclass_[static_cast<uint8_t>(text[pos])];
 
-    // Contraction handling
     if (cc_first == CC_APOS && pos + 1 < len) {
       const char next = text[pos + 1];
       if (next == 's' || next == 'S' || next == 't' || next == 'T' ||
@@ -323,13 +349,11 @@ private:
       }
       return pos;
     }
-
     if (cc == CC_DIGIT) {
       size_t count = 0;
       while (pos < len && cclass_[static_cast<uint8_t>(text[pos])] == CC_DIGIT && count < 3) { pos++; count++; }
       return pos;
     }
-
     if (!has_prefix) {
       if (cc_first == CC_NL) {
         while (pos < len) {
@@ -344,23 +368,7 @@ private:
         return pos;
       }
     }
-
     return pos > start ? pos : start + 1;
-  }
-
-  // ---- Decode: flat vector + flat array ----
-
-  std::string bytelevel_decode(const std::string& s) const {
-    std::string out;
-    out.reserve(s.size());
-    size_t i = 0;
-    while (i < s.size()) {
-      auto [cp, adv] = utf8_to_cp(s, i);
-      i += adv;
-      if (cp < 512 && decode_valid_[cp])
-        out.push_back(static_cast<char>(decode_byte_[cp]));
-    }
-    return out;
   }
 
   // ---- Construction ----
@@ -409,9 +417,14 @@ private:
 
     if (j.contains("added_tokens")) {
       for (const auto& t : j["added_tokens"]) {
-        if (!t.value("special", false)) continue;
         std::string content = t.at("content").get<std::string>();
         int id = t.at("id").get<int>();
+
+        // All added tokens go into the vocab for encode/decode
+        if (!token_to_id_.count(content))
+          token_to_id_.emplace(content, id);
+
+        if (!t.value("special", false)) continue;
         special_by_prefix_[content.empty() ? '\0' : content[0]].emplace_back(content, id);
       }
       for (auto& [_, vec] : special_by_prefix_)
@@ -421,7 +434,6 @@ private:
   }
 
   void build_tables() {
-    // Character class table
     memset(cclass_, CC_OTHER, sizeof(cclass_));
     for (int i = 'A'; i <= 'Z'; i++) cclass_[i] = CC_LETTER;
     for (int i = 'a'; i <= 'z'; i++) cclass_[i] = CC_LETTER;
@@ -433,7 +445,6 @@ private:
     cclass_[static_cast<uint8_t>('\r')] = CC_NL;
     cclass_[static_cast<uint8_t>('\'')] = CC_APOS;
 
-    // Flat id→token vector
     int max_id = 0;
     for (auto& [tok, id] : token_to_id_)
       max_id = std::max(max_id, id);
@@ -441,7 +452,7 @@ private:
     for (auto& [tok, id] : token_to_id_)
       id_to_token_vec_[id] = tok;
 
-    // Byte-level tables
+    // Byte-level codec tables
     uint32_t byte2unicode[256];
     std::unordered_set<int> visible;
     for (int i = 0; i < 256; i++)
@@ -465,7 +476,6 @@ private:
       byte_initial_id_[b] = (it != token_to_id_.end()) ? it->second : -1;
     }
 
-    // Merge map
     merge_map_.build(merges_.size());
     for (size_t i = 0; i < merges_.size(); i++) {
       auto [a, b] = merges_[i];
@@ -477,9 +487,46 @@ private:
       }
     }
 
-    // Flat word cache (zero-initialized = all empty)
     slot_cache_.resize(CACHE_SLOTS);
     memset(slot_cache_.data(), 0, CACHE_SLOTS * sizeof(CacheSlot));
+
+    // Build contiguous decode pool — precompute raw bytes for every token
+    build_decode_pool();
+  }
+
+  void build_decode_pool() {
+    size_t vocab_size = id_to_token_vec_.size();
+    decode_pieces_.resize(vocab_size, {0, 0});
+
+    // Upper bound: each BPE-encoded byte → 1 raw byte
+    size_t pool_estimate = 0;
+    for (size_t id = 0; id < vocab_size; id++)
+      pool_estimate += id_to_token_vec_[id].size();
+    decode_pool_.reserve(pool_estimate);
+
+    for (size_t id = 0; id < vocab_size; id++) {
+      const std::string& tok = id_to_token_vec_[id];
+      uint32_t start = static_cast<uint32_t>(decode_pool_.size());
+
+      // Decode this token's byte-level string to raw bytes (one-time cost)
+      size_t i = 0;
+      while (i < tok.size()) {
+        const unsigned char c0 = tok[i];
+        uint32_t cp;
+        size_t adv;
+        if (c0 < 0x80) { cp = c0; adv = 1; }
+        else if ((c0 >> 5) == 0x6) { cp = ((c0 & 0x1F) << 6) | (tok[i+1] & 0x3F); adv = 2; }
+        else if ((c0 >> 4) == 0xE) { cp = ((c0 & 0x0F) << 12) | ((tok[i+1] & 0x3F) << 6) | (tok[i+2] & 0x3F); adv = 3; }
+        else { cp = ((c0 & 0x07) << 18) | ((tok[i+1] & 0x3F) << 12) | ((tok[i+2] & 0x3F) << 6) | (tok[i+3] & 0x3F); adv = 4; }
+        i += adv;
+
+        if (cp < 512 && decode_valid_[cp])
+          decode_pool_.push_back(static_cast<char>(decode_byte_[cp]));
+      }
+
+      uint16_t len = static_cast<uint16_t>(decode_pool_.size() - start);
+      decode_pieces_[id] = {start, len};
+    }
   }
 
   static inline std::string codepoint_to_utf8(uint32_t cp) {
@@ -499,13 +546,5 @@ private:
       static_cast<char>(0x80 | ((cp >> 6) & 0x3F)),
       static_cast<char>(0x80 | (cp & 0x3F))
     };
-  }
-
-  static inline std::pair<uint32_t, size_t> utf8_to_cp(const std::string& s, size_t i) {
-    const unsigned char c0 = s[i];
-    if (c0 < 0x80) return {c0, 1};
-    if ((c0 >> 5) == 0x6) return {((c0 & 0x1F) << 6) | (s[i+1] & 0x3F), 2};
-    if ((c0 >> 4) == 0xE) return {((c0 & 0x0F) << 12) | ((s[i+1] & 0x3F) << 6) | (s[i+2] & 0x3F), 3};
-    return {((c0 & 0x07) << 18) | ((s[i+1] & 0x3F) << 12) | ((s[i+2] & 0x3F) << 6) | (s[i+3] & 0x3F), 4};
   }
 };
