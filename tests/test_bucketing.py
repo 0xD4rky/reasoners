@@ -67,11 +67,6 @@ class MockDataset:
         }
 
 
-class MockTokenizer:
-    """Mock tokenizer for testing."""
-    def __init__(self):
-        self.pad_token_id = 0
-
 
 def test_bucket_config():
     """Test bucket configuration and assignment."""
@@ -104,12 +99,10 @@ def test_token_length_cache():
     
     lengths = [100, 200, 300, 150, 500]
     dataset = MockDataset(lengths)
-    tokenizer = MockTokenizer()
     
     # Test without disk cache
     cache = TokenLengthCache(
         dataset=dataset,
-        tokenizer=tokenizer,
         cache_dir=None,
         eager=True,
         show_progress=False
@@ -130,7 +123,6 @@ def test_token_length_cache():
     with tempfile.TemporaryDirectory() as tmpdir:
         cache1 = TokenLengthCache(
             dataset=dataset,
-            tokenizer=tokenizer,
             cache_dir=tmpdir,
             eager=True,
             show_progress=False
@@ -139,7 +131,6 @@ def test_token_length_cache():
         # Second load should use cache
         cache2 = TokenLengthCache(
             dataset=dataset,
-            tokenizer=tokenizer,
             cache_dir=tmpdir,
             eager=True,
             show_progress=False
@@ -165,11 +156,9 @@ def test_bucket_manager():
         [1500] * 5     # Bucket 3: 1024-2048
     )
     dataset = MockDataset(lengths)
-    tokenizer = MockTokenizer()
     
     cache = TokenLengthCache(
         dataset=dataset,
-        tokenizer=tokenizer,
         cache_dir=None,
         eager=True,
         show_progress=False
@@ -218,11 +207,9 @@ def test_bucketed_batch_sampler():
         [1000] * 10
     )
     dataset = MockDataset(lengths)
-    tokenizer = MockTokenizer()
     
     cache = TokenLengthCache(
         dataset=dataset,
-        tokenizer=tokenizer,
         cache_dir=None,
         eager=True,
         show_progress=False
@@ -280,11 +267,9 @@ def test_token_budget_batch_sampler():
         [2000] * 5     # Long
     )
     dataset = MockDataset(lengths)
-    tokenizer = MockTokenizer()
     
     cache = TokenLengthCache(
         dataset=dataset,
-        tokenizer=tokenizer,
         cache_dir=None,
         eager=True,
         show_progress=False
@@ -440,12 +425,10 @@ def test_full_dataloader_creation():
     
     lengths = [100] * 20 + [500] * 15 + [1000] * 10
     dataset = MockDataset(lengths, pad_token_id=0)
-    tokenizer = MockTokenizer()
     
     # Test with fixed batch size
     loader, stats = create_bucketed_dataloader(
         dataset=dataset,
-        tokenizer=tokenizer,
         batch_size=8,
         use_token_budget=False,
         shuffle=True,
@@ -471,7 +454,6 @@ def test_full_dataloader_creation():
     # Test with token budget
     loader, stats = create_bucketed_dataloader(
         dataset=dataset,
-        tokenizer=tokenizer,
         batch_size=8,
         use_token_budget=True,
         max_tokens_per_batch=4000,
@@ -503,11 +485,9 @@ def test_reproducibility():
     
     lengths = [100 + i * 10 for i in range(50)]
     dataset = MockDataset(lengths)
-    tokenizer = MockTokenizer()
     
     cache = TokenLengthCache(
         dataset=dataset,
-        tokenizer=tokenizer,
         cache_dir=None,
         eager=True,
         show_progress=False

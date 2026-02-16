@@ -1,5 +1,10 @@
 import time
-from reasoners.tokenizer import QwenTokenizer
+import sys
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from reasoners.tokenizer.qwen_tokenizer import QwenTokenizer
+
 
 def benchmark_cpp_tokenizer(tokenizer, text, num_runs=100):
     total_time = 0

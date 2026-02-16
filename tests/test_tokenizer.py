@@ -2,10 +2,9 @@ import sys
 import os
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'build'))
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from reasoners.tokenizer import QwenTokenizer
+from reasoners.tokenizer.qwen_tokenizer import QwenTokenizer
 
 
 def test_basic_encode_decode():
