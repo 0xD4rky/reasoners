@@ -18,6 +18,10 @@ PYBIND11_MODULE(qwen_tokenizer_cpp, m) {
              py::arg("text"),
              py::arg("allowed_special") = std::unordered_set<std::string>(),
              "Encode text into token IDs")
+        .def("batch_encode", &QwenBPETokenizer::batch_encode,
+             py::arg("texts"),
+             py::arg("allowed_special") = std::unordered_set<std::string>(),
+             "Encode multiple texts into token IDs in a single C++ call")
         .def("decode", &QwenBPETokenizer::decode,
              py::arg("ids"),
              "Decode token IDs back to text")
@@ -27,4 +31,3 @@ PYBIND11_MODULE(qwen_tokenizer_cpp, m) {
         .def("config", &QwenBPETokenizer::config,
              "Get tokenizer configuration");
 }
-
