@@ -5,6 +5,13 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -DNDEBUG -flto")
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+
 find_package(Python COMPONENTS Interpreter Development REQUIRED)
 
 include(FetchContent)
@@ -22,10 +29,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pybind11)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/reasoners/models/Qwen/Qwen2.5-1.5B-Instruct)
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/reasoners/tokenizer/Qwen/Qwen2.5-1.5B-Instruct)
 
 pybind11_add_module(qwen_tokenizer_cpp 
-  reasoners/models/Qwen/Qwen2.5-1.5B-Instruct/python_bindings.cpp
+  reasoners/tokenizer/Qwen/Qwen2.5-1.5B-Instruct/python_bindings.cpp
 )
 
 target_link_libraries(qwen_tokenizer_cpp PRIVATE nlohmann_json::nlohmann_json)

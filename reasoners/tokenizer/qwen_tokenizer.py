@@ -85,7 +85,17 @@ class QwenTokenizer:
         if allowed_special is None:
             allowed_special = self._default_allowed_special if add_special_tokens else set()
         return self._tokenizer.encode(text, allowed_special)
-    
+
+    def batch_encode(
+        self,
+        texts: List[str],
+        allowed_special: Optional[Set[str]] = None,
+        add_special_tokens: bool = True
+    ) -> List[List[int]]:
+        if allowed_special is None:
+            allowed_special = self._default_allowed_special if add_special_tokens else set()
+        return self._tokenizer.batch_encode(texts, allowed_special)
+
     def decode(
         self, 
         ids: List[int],
